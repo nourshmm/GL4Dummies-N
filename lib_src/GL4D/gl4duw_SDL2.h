@@ -360,6 +360,10 @@ extern "C" {
    */
   GL4DAPI GLboolean  GL4DAPIENTRY gl4duwBindWindow(const char * title);
 
+
+  //ici nour
+  GL4DAPI SDL_GLContext  GL4DAPIENTRY get_glcontext();
+
   /*!\brief récupère la largeur et la hauteur de la fenêtre courante.
    * \param w pointeur vers entier où sera renseignée la largeur de la fenêtre.
    * \param h pointeur vers entier où sera renseignée la hauteur de la fenêtre.

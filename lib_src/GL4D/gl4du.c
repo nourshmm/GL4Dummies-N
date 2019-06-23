@@ -260,22 +260,24 @@ void gl4duPrintFPS(FILE * fp) {
  * \return l'identifiant du shader décrit dans \a filename.
  */
 
+//avoir avec BELHADJ
 GLuint gl4duCreateShader(GLenum shadertype, const char * filename) {
   char temp[BUFSIZ << 1];
   shader_t ** sh = findfnInShadersList(filename);
   GLuint contex_ = (GLuint) get_glcontext();
-  // SDL_GLContext contex_ = get
-  if(*sh) return (*sh)->id;
+  SDL_GLContext contex_ = get_glcontext();
+
+  if(*sh) return contex_;
   gl4duMakeBinRelativePath(temp, sizeof temp, filename);
   // la ligne précédente fait ça snprintf(temp, sizeof temp, "%s/%s", _pathOfMe, filename);
   sh = findfnInShadersList(temp);
-  if(*sh) return (*sh)->id;
+  if(*sh) return contex_;
   sh = addInShadersList(shadertype, filename, NULL);
   if(!sh) {
     fprintf(stderr, "trying with another path (%s)\n", temp);
     sh = addInShadersList(shadertype, temp, NULL);
   }
-  return (sh) ? (*sh)->id : 0;
+  return (sh) ? contex_ : 0;
 }
 
 /*!\brief retourne l'identifiant du shader dont le code source est \a
@@ -357,6 +359,7 @@ GLuint gl4duCreateProgram(const char * firstone, ...) {
   va_start(pa, firstone);
   fprintf(stderr, "%s (%d): Creation du programme %d a l'aide des Shaders :\n", __FILE__, __LINE__, pId);
   do {
+    //a voir sID si peut être remplacer par contexte
     if(!strncmp("<vs>", filename, 4)) { /* vertex shader */
       fprintf(stderr, "%s : vertex shader\n", &filename[4]);
       if(!(sId = gl4duCreateShader(GL_VERTEX_SHADER, &filename[4]))) goto gl4duCreateProgram_ERROR;

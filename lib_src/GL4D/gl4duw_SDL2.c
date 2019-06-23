@@ -156,7 +156,7 @@ GLboolean gl4duwBindWindow(const char * title) {
   window_t wt = {(char *)title, NULL, 0,    NULL, NULL, NULL,
                  NULL,          NULL, NULL, NULL, NULL, NULL};
   pair_t pair;
-
+  
   pair = btFind(&_btWindows, &wt, windowCmpFunc);
   if(pair.compResult)
     return GL_FALSE;
@@ -166,6 +166,21 @@ GLboolean gl4duwBindWindow(const char * title) {
   printf("voyons voir ici  context : %d\n",  (GLuint)_curWindow->glContext);
   SDL_GL_MakeCurrent(_curWindow->window, _curWindow->glContext );
   return GL_TRUE;
+}
+
+//récupérer le contexte d'une fênetre précise    
+SDL_GLContext get_glcontext(void){
+  return get__context;
+}
+void gl4duwMainLoop(void) {
+  for(;;) {
+    if(_hasManageEvents)
+      manageEvents();
+    btForAll(_btWindows, mainLoopBody, NULL);
+    SDL_GL_MakeCurrent(_curWindow->window, _curWindow->glContext);
+    gl4duPrintFPS(stderr);
+    gl4duUpdateShaders();
+  }
 }
 
 void gl4duwResizeFunc(void (*func)(int width, int height)) {
