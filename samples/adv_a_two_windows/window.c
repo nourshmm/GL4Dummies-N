@@ -115,6 +115,7 @@ static void initF1(void) {
   gl4duFrustumf(-1, 1, -1, 1, 2, 100);
   /* dans quelle partie de l'écran on effectue le rendu */
   glViewport(0, 0, _wW, _wH);
+  
 }
 /*!\brief initialise les paramètres OpenGL et les données pour la fenêtre 2. 
  */

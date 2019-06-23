@@ -259,6 +259,7 @@ void gl4duPrintFPS(FILE * fp) {
  *
  * \return l'identifiant du shader décrit dans \a filename.
  */
+
 GLuint gl4duCreateShader(GLenum shadertype, const char * filename) {
   char temp[BUFSIZ << 1];
   shader_t ** sh = findfnInShadersList(filename);

@@ -156,6 +156,7 @@ GLboolean gl4duwBindWindow(const char * title) {
   window_t wt = {(char *)title, NULL, 0,    NULL, NULL, NULL,
                  NULL,          NULL, NULL, NULL, NULL, NULL};
   pair_t pair;
+  
   pair = btFind(&_btWindows, &wt, windowCmpFunc);
   if(pair.compResult)
     return GL_FALSE;

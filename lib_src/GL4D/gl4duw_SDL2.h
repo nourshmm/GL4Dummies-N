@@ -348,6 +348,7 @@ extern "C" {
    * \return le pointeur vers la structure SDL_Window de la fenêtre
    * courante.
    */
+  
   GL4DAPI SDL_Window * GL4DAPIENTRY gl4duwGetSDL_Window(void);
   /*!\brief recherche et positionne "courant" une fenêtre en fonction de son titre.
    *
