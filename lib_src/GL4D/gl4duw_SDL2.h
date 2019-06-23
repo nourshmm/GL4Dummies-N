@@ -348,7 +348,6 @@ extern "C" {
    * \return le pointeur vers la structure SDL_Window de la fenêtre
    * courante.
    */
-  
   GL4DAPI SDL_Window * GL4DAPIENTRY gl4duwGetSDL_Window(void);
   /*!\brief recherche et positionne "courant" une fenêtre en fonction de son titre.
    *
@@ -360,10 +359,6 @@ extern "C" {
    * \return GL_TRUE en cas de réussite, GL_FALSE en cas d'échec.
    */
   GL4DAPI GLboolean  GL4DAPIENTRY gl4duwBindWindow(const char * title);
-
-
-  //ici nour 
-  GL4DAPI SDL_GLContext  GL4DAPIENTRY get_glcontext();
 
   /*!\brief récupère la largeur et la hauteur de la fenêtre courante.
    * \param w pointeur vers entier où sera renseignée la largeur de la fenêtre.

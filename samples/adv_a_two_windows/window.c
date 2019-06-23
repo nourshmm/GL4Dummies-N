@@ -115,7 +115,7 @@ static void initF1(void) {
   gl4duFrustumf(-1, 1, -1, 1, 2, 100);
   /* dans quelle partie de l'écran on effectue le rendu */
   glViewport(0, 0, _wW, _wH);
-  
+
 }
 /*!\brief initialise les paramètres OpenGL et les données pour la fenêtre 2. 
  */
@@ -143,7 +143,7 @@ static void initF2(void) {
      sommes pas dans le même contexte opengl (gl4duwBindWindow change
      le contexte). Au passage tu peux te servir du nom de la fenêtre
      comme id "unique" supplémentaire, c'est toi qui voit. */
-  _pIdF2 = gl4duCreateProgram("<vs>shaders/basic.vs", "<fs>shaders/basic.fs", NULL);
+  _pIdF2 = gl4duCreateProgram("<vs>shaders/basic2.vs", "<fs>shaders/basic2.fs", NULL);
   /* générer un identifiant de texture */
   glGenTextures(1, &_texIdF2);
   /* lier l'identifiant de texture comme texture 2D (1D ou 3D

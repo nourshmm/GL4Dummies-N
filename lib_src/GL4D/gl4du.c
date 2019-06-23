@@ -264,6 +264,7 @@ GLuint gl4duCreateShader(GLenum shadertype, const char * filename) {
   char temp[BUFSIZ << 1];
   shader_t ** sh = findfnInShadersList(filename);
   GLuint contex_ = (GLuint) get_glcontext();
+  // SDL_GLContext contex_ = get
   if(*sh) return (*sh)->id;
   gl4duMakeBinRelativePath(temp, sizeof temp, filename);
   // la ligne précédente fait ça snprintf(temp, sizeof temp, "%s/%s", _pathOfMe, filename);
