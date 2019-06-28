@@ -152,6 +152,7 @@ SDL_Window * gl4duwGetSDL_Window(void) {
 }
 
 static SDL_GLContext get__context = NULL;
+
 GLboolean gl4duwBindWindow(const char * title) {
   window_t wt = {(char *)title, NULL, 0,    NULL, NULL, NULL,
                  NULL,          NULL, NULL, NULL, NULL, NULL};

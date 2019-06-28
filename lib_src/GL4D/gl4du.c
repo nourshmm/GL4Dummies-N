@@ -17,7 +17,6 @@
  */
 
 #include "gl4du.h"
-#include "gl4duw_SDL2.h"
 #ifndef __GLES4D__
 #include "gl4dh.h"
 #endif
@@ -40,8 +39,8 @@ typedef struct _GL4DUMatrix _GL4DUMatrix;
 
 struct shader_t {
   GLuint id;
+  SDL_GLContext contexte;
   GLenum shadertype;
-  GLuint glcontext;
   char * filename;
   time_t mod_time;
   GLboolean verify_timestamp;
@@ -141,10 +140,10 @@ static void findPathOfMe(const char * argv0) {
     free(proc);
   } else {
     fprintf(stderr, "%s (%s:%d) - error while kinfo_getproc(getpid()), trying with readlink\n",
-	    __func__, __FILE__, __LINE__);
+      __func__, __FILE__, __LINE__);
     if(readlink("/proc/curproc/file", buf, sizeof buf) <= 0) {
       fprintf(stderr, "%s (%s:%d) - finding exec path failed with readlink\n",
-	      __func__, __FILE__, __LINE__);
+        __func__, __FILE__, __LINE__);
       /* sinon essayer sysctl CTL_KERN KERN_PROC KERN_PROC_PATHNAME -1 ??? */
     }
   }
@@ -152,7 +151,7 @@ static void findPathOfMe(const char * argv0) {
   pid_t pid = getpid();
   if(proc_pidpath(pid, buf, sizeof buf) <= 0) {
     fprintf(stderr, "%s (%s:%d) - proc_pidpath(%d ...) error: %s\n",
-	    __func__, __FILE__, __LINE__, pid, strerror(errno));
+      __func__, __FILE__, __LINE__, pid, strerror(errno));
     /* essayer _NSGetExecutablePath() (man 3 dyld) ??? */
   }
 #else /* autres unices */
@@ -161,7 +160,7 @@ static void findPathOfMe(const char * argv0) {
      readlink("/proc/curproc/exe", buf, sizeof buf) <= 0 &&    /* (NetBSD) */
      readlink("/proc/self/path/a.out", buf, sizeof buf) <= 0  /* (Solaris) sinon strncpy(buf, getexecname(), sizeof buf) ?? */)
     fprintf(stderr, "%s (%s:%d) - finding exec path failed with readlink\n",
-	    __func__, __FILE__, __LINE__);
+      __func__, __FILE__, __LINE__);
 #endif
   strncpy(_pathOfMe, pathOf(strlen(buf) > 0 ? buf : argv0), sizeof _pathOfMe);
   _pathOfMeInit = 1;
@@ -259,25 +258,22 @@ void gl4duPrintFPS(FILE * fp) {
  *
  * \return l'identifiant du shader décrit dans \a filename.
  */
-
-//avoir avec BELHADJ
 GLuint gl4duCreateShader(GLenum shadertype, const char * filename) {
   char temp[BUFSIZ << 1];
   shader_t ** sh = findfnInShadersList(filename);
-  GLuint contex_ = (GLuint) get_glcontext();
-  SDL_GLContext contex_ = get_glcontext();
-
-  if(*sh) return contex_;
+  if(*sh) return (*sh)->id;
   gl4duMakeBinRelativePath(temp, sizeof temp, filename);
   // la ligne précédente fait ça snprintf(temp, sizeof temp, "%s/%s", _pathOfMe, filename);
   sh = findfnInShadersList(temp);
-  if(*sh) return contex_;
+  if((*sh)) {
+    return (*sh)->id;
+  }
   sh = addInShadersList(shadertype, filename, NULL);
   if(!sh) {
     fprintf(stderr, "trying with another path (%s)\n", temp);
     sh = addInShadersList(shadertype, temp, NULL);
   }
-  return (sh) ? contex_ : 0;
+  return (sh) ? (*sh)->id : 0;
 }
 
 /*!\brief retourne l'identifiant du shader dont le code source est \a
@@ -322,6 +318,7 @@ GLuint gl4duFindShader(const char * filename) {
   return (*sh) ? (*sh)->id : 0;
 }
 
+
 /*!\brief supprime le shader dont l'identifiant openGL est \a id de la
  * liste de shaders \ref shaders_list.
  */
@@ -354,12 +351,10 @@ GLuint gl4duCreateProgram(const char * firstone, ...) {
   char fn[BUFSIZ], format[BUFSIZ];
   if(!pId) return pId;
   prg = addInProgramsList(pId);
-
   filename = firstone;
   va_start(pa, firstone);
-  fprintf(stderr, "%s (%d): Creation du programme %d a l'aide des Shaders :\n", __FILE__, __LINE__, pId);
+  fprintf(stderr, "%s (%d): Creation du programme --------------------------------------- %d a l'aide des Shaders :\n", __FILE__, __LINE__, pId);
   do {
-    //a voir sID si peut être remplacer par contexte
     if(!strncmp("<vs>", filename, 4)) { /* vertex shader */
       fprintf(stderr, "%s : vertex shader\n", &filename[4]);
       if(!(sId = gl4duCreateShader(GL_VERTEX_SHADER, &filename[4]))) goto gl4duCreateProgram_ERROR;
@@ -368,9 +363,9 @@ GLuint gl4duCreateProgram(const char * firstone, ...) {
       fn[0] = 0;
       snprintf(format, sizeof format, "<imvs>%%%d[^\t\n<>$!:;,=\"|]</imvs>", BUFSIZ - 1);
       if(sscanf(filename, format, fn) != 1 || strncmp("</imvs>", &filename[6 + strlen(fn)], 7)) {
-	fprintf(stderr, "%s (%d): %s: erreur lors du parsing de %s\n",
-		__FILE__, __LINE__, __func__, filename);
-	continue;
+  fprintf(stderr, "%s (%d): %s: erreur lors du parsing de %s\n",
+    __FILE__, __LINE__, __func__, filename);
+  continue;
       }
       fprintf(stderr, "%s : vertex shader\n", fn);
       if(!(sId = gl4duCreateShaderIM(GL_VERTEX_SHADER, fn, &filename[13 + strlen(fn)]))) goto gl4duCreateProgram_ERROR;
@@ -383,9 +378,9 @@ GLuint gl4duCreateProgram(const char * firstone, ...) {
       fn[0] = 0;
       snprintf(format, sizeof format, "<imfs>%%%d[^\t\n<>$!:;,=\"|]</imfs>", BUFSIZ - 1);
       if(sscanf(filename, format, fn) != 1 || strncmp("</imfs>", &filename[6 + strlen(fn)], 7)) {
-	fprintf(stderr, "%s (%d): %s: erreur lors du parsing de %s\n",
-		__FILE__, __LINE__, __func__, filename);
-	continue;
+  fprintf(stderr, "%s (%d): %s: erreur lors du parsing de %s\n",
+    __FILE__, __LINE__, __func__, filename);
+  continue;
       }
       fprintf(stderr, "%s : fragment shader\n", fn);
       if(!(sId = gl4duCreateShaderIM(GL_FRAGMENT_SHADER, fn, &filename[13 + strlen(fn)]))) goto gl4duCreateProgram_ERROR;
@@ -400,9 +395,9 @@ GLuint gl4duCreateProgram(const char * firstone, ...) {
       fn[0] = 0;
       snprintf(format, sizeof format, "<imgs>%%%d[^\t\n<>$!:;,=\"|]</imgs>", BUFSIZ - 1);
       if(sscanf(filename, format, fn) != 1 || strncmp("</imgs>", &filename[6 + strlen(fn)], 7)) {
-	fprintf(stderr, "%s (%d): %s: erreur lors du parsing de %s\n",
-		__FILE__, __LINE__, __func__, filename);
-	continue;
+  fprintf(stderr, "%s (%d): %s: erreur lors du parsing de %s\n",
+    __FILE__, __LINE__, __func__, filename);
+  continue;
       }
       fprintf(stderr, "%s : geometry shader\n", fn);
       if(!(sId = gl4duCreateShaderIM(GL_GEOMETRY_SHADER, fn, &filename[13 + strlen(fn)]))) goto gl4duCreateProgram_ERROR;
@@ -411,7 +406,7 @@ GLuint gl4duCreateProgram(const char * firstone, ...) {
 #endif
     else { /* ??? shader */
       fprintf(stderr, "%s (%d): %s: erreur de syntaxe dans \"%s\"\n",
-	      __FILE__, __LINE__, __func__, filename);
+        __FILE__, __LINE__, __func__, filename);
     }
   } while((filename = va_arg(pa, const char *)) != NULL);
   va_end(pa);
@@ -458,7 +453,7 @@ GLuint gl4duCreateProgramFED(const char * encData, const char * firstone, ...) {
 
   filename = firstone;
   va_start(pa, firstone);
-  fprintf(stderr, "%s (%d): Creation du programme %d a l'aide des Shaders :\n", __FILE__, __LINE__, pId);
+  fprintf(stderr, "%s (%d): Creation du programme----------------------smamalmalmalmsmla-----------------  %d a l'aide des Shaders :\n", __FILE__, __LINE__, pId);
   do {
     if(!strncmp("<vs>", filename, 4)) { /* vertex shader */
       fprintf(stderr, "%s : vertex shader\n", &filename[4]);
@@ -478,7 +473,7 @@ GLuint gl4duCreateProgramFED(const char * encData, const char * firstone, ...) {
 #endif
     else { /* ??? shader */
       fprintf(stderr, "%s (%d): %s: erreur de syntaxe dans \"%s\"\n",
-	      __FILE__, __LINE__, __func__, filename);
+        __FILE__, __LINE__, __func__, filename);
     }
   } while((filename = va_arg(pa, const char *)) != NULL);
   va_end(pa);
@@ -551,18 +546,18 @@ void gl4duCleanUnattached(GL4DUenum what) {
     program_t ** ptr = &programs_list;
     while(*ptr) {
       if((*ptr)->nshaders <= 0) /* ne devrait pas être négatif */
-	deleteFromProgramsList(ptr);
+  deleteFromProgramsList(ptr);
       else
-	ptr = &((*ptr)->next);
+  ptr = &((*ptr)->next);
     }
   }
   if(what & GL4DU_SHADER) {
     shader_t ** ptr = &shaders_list;
     while(*ptr) {
       if((*ptr)->nprograms <= 0) /* ne devrait pas être négatif */
-	deleteFromShadersList(ptr);
+  deleteFromShadersList(ptr);
       else
-	ptr = &((*ptr)->next);
+  ptr = &((*ptr)->next);
     }
   }
 }
@@ -596,31 +591,31 @@ int gl4duUpdateShaders(void) {
     }
     if(stat((*ptr)->filename, &buf) != 0) {
       fprintf(stderr, "%s:%d:In %s: erreur %d: %s\n",
-	      __FILE__, __LINE__, __func__, errno, strerror(errno));
+        __FILE__, __LINE__, __func__, errno, strerror(errno));
       return 0;
     }
     if((*ptr)->mod_time != buf.st_mtime) {
       if((n = (*ptr)->nprograms)) {
-	p = malloc(n * sizeof * p);
-	assert(p);
-	memcpy(p, (*ptr)->programs, n * sizeof * p);
-	for(i = 0; i < n; i++)
-	  detachShader(p[i], *ptr);
-	ot = (*ptr)->shadertype;
-	fn = strdup((*ptr)->filename);
-	deleteFromShadersList(ptr);
-	ptr = addInShadersList(ot, fn, NULL);
-	for(i = 0; i < n; i++) {
-	  attachShader(p[i], *ptr);
-	  glLinkProgram(p[i]->id);
-	}
-	free(p);
-	free(fn);
+  p = malloc(n * sizeof * p);
+  assert(p);
+  memcpy(p, (*ptr)->programs, n * sizeof * p);
+  for(i = 0; i < n; i++)
+    detachShader(p[i], *ptr);
+  ot = (*ptr)->shadertype;
+  fn = strdup((*ptr)->filename);
+  deleteFromShadersList(ptr);
+  ptr = addInShadersList(ot, fn, NULL);
+  for(i = 0; i < n; i++) {
+    attachShader(p[i], *ptr);
+    glLinkProgram(p[i]->id);
+  }
+  free(p);
+  free(fn);
       } else {
-	ot = (*ptr)->shadertype;
-	fn = strdup((*ptr)->filename);
-	deleteFromShadersList(ptr);
-	ptr = addInShadersList(ot, fn, NULL);
+  ot = (*ptr)->shadertype;
+  fn = strdup((*ptr)->filename);
+  deleteFromShadersList(ptr);
+  ptr = addInShadersList(ot, fn, NULL);
       }
       maj = 1;
     } else
@@ -642,7 +637,7 @@ int gl4duUpdateShaders(void) {
 static shader_t ** findfnInShadersList(const char * filename) {
   shader_t ** ptr = &shaders_list;
   while(*ptr) {
-    if(!strcmp(filename, (*ptr)->filename))
+    if((!strcmp(filename, (*ptr)->filename) && ((*ptr)->contexte) != &((*ptr)->next) ) )
       return ptr;
     ptr = &((*ptr)->next);
   }
@@ -659,6 +654,7 @@ static shader_t ** findfnInShadersList(const char * filename) {
  * \return le pointeur de pointeur vers le shader.
  */
 static shader_t ** findidInShadersList(GLuint id) {
+  fprintf(stderr, "%d\n", id);
   shader_t ** ptr = &shaders_list;
   while(*ptr) {
     if(id == (*ptr)->id)
@@ -677,18 +673,14 @@ static shader_t ** findidInShadersList(GLuint id) {
  */
 static shader_t ** addInShadersList(GLenum shadertype, const char * filename, const char * shadercode) {
   GLuint id;
-  SDL_GLContext context;
   char * txt = NULL;
   struct stat buf;
   shader_t * ptr;
   if(!(id = glCreateShader(shadertype))) {
     fprintf(stderr, "%s (%d): %s: impossible de créer le shader\nglCreateShader a retourné 0\n",
-	    __FILE__, __LINE__, __func__);
+      __FILE__, __LINE__, __func__);
     return NULL;
   }
-  context = get_glcontext();
-  printf("ICI gl4du.c : %d\n", (GLuint)context);
-
   if(shadercode == NULL) {
     if(!(txt = gl4dReadTextFile(filename))) {
       glDeleteShader(id);
@@ -696,7 +688,7 @@ static shader_t ** addInShadersList(GLenum shadertype, const char * filename, co
     }
     if(stat(filename, &buf) != 0) {
       fprintf(stderr, "%s:%d:In %s: erreur %d: %s\n",
-	      __FILE__, __LINE__, __func__, errno, strerror(errno));
+        __FILE__, __LINE__, __func__, errno, strerror(errno));
       glDeleteShader(id);
       return NULL;
     }
@@ -705,6 +697,10 @@ static shader_t ** addInShadersList(GLenum shadertype, const char * filename, co
   ptr = shaders_list;
   shaders_list = malloc(sizeof * shaders_list);
   assert(shaders_list);
+
+  //NOUR 
+  shaders_list->contexte   = get_glcontext();
+
   shaders_list->id         = id;
   shaders_list->shadertype = shadertype;
   shaders_list->filename   = strdup(filename);
@@ -735,7 +731,7 @@ static shader_t ** addInShadersListFED(const char * decData, GLenum shadertype, 
   shader_t * ptr;
   if(!(id = glCreateShader(shadertype))) {
     fprintf(stderr, "%s (%d): %s: impossible de créer le shader\nglCreateShader a retourné 0\n",
-	    __FILE__, __LINE__, __func__);
+      __FILE__, __LINE__, __func__);
     return NULL;
   }
   if(!(txt = gl4dExtractFromDecData(decData, filename))) {
@@ -745,6 +741,9 @@ static shader_t ** addInShadersListFED(const char * decData, GLenum shadertype, 
   ptr = shaders_list;
   shaders_list = malloc(sizeof * shaders_list);
   assert(shaders_list);
+  //NOUR 
+  shaders_list->contexte   = get_glcontext();
+
   shaders_list->id         = id;
   shaders_list->shadertype = shadertype;
   shaders_list->filename   = strdup(filename);
@@ -1038,8 +1037,8 @@ void gl4duPushMatrix(void) {
     assert(_gl4dCurMatrix->data);
   }
   memcpy(&(((GLubyte *)_gl4dCurMatrix->data)[_gl4dCurMatrix->top * _gl4dCurMatrix->size]),
-	 &(((GLubyte *)_gl4dCurMatrix->data)[(_gl4dCurMatrix->top - 1) * _gl4dCurMatrix->size]),
-	 _gl4dCurMatrix->size);
+   &(((GLubyte *)_gl4dCurMatrix->data)[(_gl4dCurMatrix->top - 1) * _gl4dCurMatrix->size]),
+   _gl4dCurMatrix->size);
 }
 
 /*!\brief dépile la matrice courante en restaurant l'état précédemment
@@ -1293,11 +1292,11 @@ void gl4duMultMatrixByName(const char * name) {
     if(name && (bt = findMatrix(name))) {
       _GL4DUMatrix * namedMatrix = (_GL4DUMatrix *)((*bt)->data);
       if(namedMatrix->type == GL_FLOAT) {
-	GLfloat *matrix = (GLfloat *)&(((GLubyte *)namedMatrix->data)[namedMatrix->top * namedMatrix->size]);
-	MMAT4XMAT4(mat, cpy, matrix);
+  GLfloat *matrix = (GLfloat *)&(((GLubyte *)namedMatrix->data)[namedMatrix->top * namedMatrix->size]);
+  MMAT4XMAT4(mat, cpy, matrix);
       } else { /* GL_DOUBLE */
-	GLdouble *matrix = (GLdouble *)&(((GLubyte *)namedMatrix->data)[namedMatrix->top * namedMatrix->size]);
-	MMAT4XMAT4(mat, cpy, matrix);
+  GLdouble *matrix = (GLdouble *)&(((GLubyte *)namedMatrix->data)[namedMatrix->top * namedMatrix->size]);
+  MMAT4XMAT4(mat, cpy, matrix);
       }
     }
   } else {
@@ -1306,11 +1305,11 @@ void gl4duMultMatrixByName(const char * name) {
     if(name && (bt = findMatrix(name))) {
       _GL4DUMatrix * namedMatrix = (_GL4DUMatrix *)((*bt)->data);
       if(namedMatrix->type == GL_FLOAT) {
-	GLfloat *matrix = (GLfloat *)&(((GLubyte *)namedMatrix->data)[namedMatrix->top * namedMatrix->size]);
-	MMAT4XMAT4(mat, cpy, matrix);
+  GLfloat *matrix = (GLfloat *)&(((GLubyte *)namedMatrix->data)[namedMatrix->top * namedMatrix->size]);
+  MMAT4XMAT4(mat, cpy, matrix);
       } else { /* GL_DOUBLE */
-	GLdouble *matrix = (GLdouble *)&(((GLubyte *)namedMatrix->data)[namedMatrix->top * namedMatrix->size]);
-	MMAT4XMAT4(mat, cpy, matrix);
+  GLdouble *matrix = (GLdouble *)&(((GLubyte *)namedMatrix->data)[namedMatrix->top * namedMatrix->size]);
+  MMAT4XMAT4(mat, cpy, matrix);
       }
     }
   }
@@ -1330,9 +1329,9 @@ void gl4duRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z) {
   if ( n > 0.0f ) {
     GLfloat a, s, c, cc, x2, y2, z2, xy, yz, zx, xs, ys, zs;
     GLfloat mat[] = { 0.0f, 0.0f, 0.0f, 0.0f,
-		      0.0f, 0.0f, 0.0f, 0.0f,
-		      0.0f, 0.0f, 0.0f, 0.0f,
-		      0.0f, 0.0f, 0.0f, 1.0f };
+          0.0f, 0.0f, 0.0f, 0.0f,
+          0.0f, 0.0f, 0.0f, 0.0f,
+          0.0f, 0.0f, 0.0f, 1.0f };
     s  = sinf ( a = (angle * (GLfloat)GL4DM_PI / 180.0f) );
     cc = 1.0f - (c = cosf ( a ));
     x /= n;     y /= n;     z /= n;
@@ -1370,9 +1369,9 @@ void gl4duRotated(GLdouble angle, GLdouble x, GLdouble y, GLdouble z) {
   if ( n > 0.0 ) {
     GLdouble a, s, c, cc, x2, y2, z2, xy, yz, zx, xs, ys, zs;
     GLdouble mat[] = { 0.0, 0.0, 0.0, 0.0,
-		       0.0, 0.0, 0.0, 0.0,
-		       0.0, 0.0, 0.0, 0.0,
-		       0.0, 0.0, 0.0, 1.0 };
+           0.0, 0.0, 0.0, 0.0,
+           0.0, 0.0, 0.0, 0.0,
+           0.0, 0.0, 0.0, 1.0 };
     s  = sin ( a = (angle * GL4DM_PI / 180.0) );
     cc = 1.0 - (c = cos ( a ));
     x /= n;     y /= n;     z /= n;
@@ -1405,9 +1404,9 @@ void gl4duRotated(GLdouble angle, GLdouble x, GLdouble y, GLdouble z) {
  */
 void gl4duTranslatef(GLfloat tx, GLfloat ty, GLfloat tz) {
   GLfloat mat[] = { 1.0f, 0.0f, 0.0f, tx,
-		    0.0f, 1.0f, 0.0f, ty,
-		    0.0f, 0.0f, 1.0f, tz,
-		    0.0f, 0.0f, 0.0f, 1.0f };
+        0.0f, 1.0f, 0.0f, ty,
+        0.0f, 0.0f, 1.0f, tz,
+        0.0f, 0.0f, 0.0f, 1.0f };
   gl4duMultMatrixf(mat);
 }
 
@@ -1420,9 +1419,9 @@ void gl4duTranslatef(GLfloat tx, GLfloat ty, GLfloat tz) {
  */
 void gl4duTranslated(GLdouble tx, GLdouble ty, GLdouble tz) {
   GLdouble mat[] = { 1.0, 0.0, 0.0, tx,
-		     0.0, 1.0, 0.0, ty,
-		     0.0, 0.0, 1.0, tz,
-		     0.0, 0.0, 0.0, 1.0 };
+         0.0, 1.0, 0.0, ty,
+         0.0, 0.0, 1.0, tz,
+         0.0, 0.0, 0.0, 1.0 };
   gl4duMultMatrixd(mat);
 }
 
@@ -1435,9 +1434,9 @@ void gl4duTranslated(GLdouble tx, GLdouble ty, GLdouble tz) {
  */
 void gl4duScalef(GLfloat sx, GLfloat sy, GLfloat sz) {
   GLfloat mat[] = { sx  , 0.0f, 0.0f, 0.0f,
-		    0.0f,   sy, 0.0f, 0.0f,
-		    0.0f, 0.0f,   sz, 0.0f,
-		    0.0f, 0.0f, 0.0f, 1.0f };
+        0.0f,   sy, 0.0f, 0.0f,
+        0.0f, 0.0f,   sz, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f };
   gl4duMultMatrixf(mat);
 }
 
@@ -1450,9 +1449,9 @@ void gl4duScalef(GLfloat sx, GLfloat sy, GLfloat sz) {
  */
 void gl4duScaled(GLdouble sx, GLdouble sy, GLdouble sz) {
   GLdouble mat[] = { sx , 0.0, 0.0, 0.0,
-		     0.0,  sy, 0.0, 0.0,
-		     0.0, 0.0,  sz, 0.0,
-		     0.0, 0.0, 0.0, 1.0 };
+         0.0,  sy, 0.0, 0.0,
+         0.0, 0.0,  sz, 0.0,
+         0.0, 0.0, 0.0, 1.0 };
   gl4duMultMatrixd(mat);
 }
 
