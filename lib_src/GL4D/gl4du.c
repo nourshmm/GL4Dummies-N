@@ -260,11 +260,12 @@ void gl4duPrintFPS(FILE * fp) {
  */
 GLuint gl4duCreateShader(GLenum shadertype, const char * filename) {
   char temp[BUFSIZ << 1];
-  shader_t ** sh = findfnInShadersList(filename);
+  SDL_GLContext contex = get_glcontext();
+  shader_t ** sh = findfnInShadersList(filename,contex);
   if(*sh) return (*sh)->id;
   gl4duMakeBinRelativePath(temp, sizeof temp, filename);
   // la ligne précédente fait ça snprintf(temp, sizeof temp, "%s/%s", _pathOfMe, filename);
-  sh = findfnInShadersList(temp);
+  sh = findfnInShadersList(temp,contex);
   if((*sh)) {
     return (*sh)->id;
   }
@@ -287,7 +288,7 @@ GLuint gl4duCreateShader(GLenum shadertype, const char * filename) {
  * \return l'identifiant du shader correspondant au code source \a shadercode.
  */
 GLuint gl4duCreateShaderIM(GLenum shadertype, const char * filename, const char * shadercode) {
-  shader_t ** sh = findfnInShadersList(filename);
+  shader_t ** sh = findfnInShadersList(filename,contex);
   if(*sh) return (*sh)->id;
   sh = addInShadersList(shadertype, filename, shadercode);
   return (sh) ? (*sh)->id : 0;
@@ -299,7 +300,7 @@ GLuint gl4duCreateShaderIM(GLenum shadertype, const char * filename, const char 
  * \todo ajouter la gestion des chemins relatifs à l'emplacement du binaire comme pour \a gl4duCreateShader.
  */
 GLuint gl4duCreateShaderFED(const char * decData, GLenum shadertype, const char * filename) {
-  shader_t ** sh = findfnInShadersList(filename);
+  shader_t ** sh = findfnInShadersList(filename,contex);
   if(*sh) return (*sh)->id;
   sh = addInShadersListFED(decData, shadertype, filename);
   return (sh) ? (*sh)->id : 0;
@@ -313,8 +314,8 @@ GLuint gl4duCreateShaderFED(const char * decData, GLenum shadertype, const char 
  * \return l'identifiant du shader décrit dans \a filename ou 0 s'il n'a
  * pas été chargé.
  */
-GLuint gl4duFindShader(const char * filename) {
-  shader_t ** sh = findfnInShadersList(filename);
+GLuint gl4duFindShader(const char * filename, SDL_GLContext contex) {
+  shader_t ** sh = findfnInShadersList(filename , contex);
   return (*sh) ? (*sh)->id : 0;
 }
 
@@ -634,10 +635,10 @@ int gl4duUpdateShaders(void) {
  *
  * \return le pointeur de pointeur vers le shader.
  */
-static shader_t ** findfnInShadersList(const char * filename) {
+static shader_t ** findfnInShadersList(const char * filename, SDL_GLContext contex) {
   shader_t ** ptr = &shaders_list;
   while(*ptr) {
-    if((!strcmp(filename, (*ptr)->filename) && ((*ptr)->contexte) != &((*ptr)->next) ) )
+    if((!strcmp(filename, (*ptr)->filename) && ((*ptr)->contexte) != (GLuint) contex ))
       return ptr;
     ptr = &((*ptr)->next);
   }
